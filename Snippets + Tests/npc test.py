@@ -7,61 +7,61 @@ def clear():
 
 npc_context = {}
 
+# The prompt engineering needs work, as there's still some hallucinations.
+# Notably, an NPC mentioned "dark fantasy", which is in its system prompt.
+# Breaking the forth wall is obviously pretty bad.
+
 with open(f'npc_context.json') as context_file:
     try:
         npc_context = json.load(context_file)
     except:
         ""
 
-def talk_to_npc(name):
+def dialog(name, prompt):
+    clear()
+    finish = ''
     context = []
-    exit = False
-    output = ''
     try:
         context = npc_context[f'{name}']
     except:
         npc_context[f'{name}'] = []
-    
-
-    while exit == False:
-        user_input = input()
-        if user_input != "exit":
-            clear()
-            stream = ollama.generate(
-                model=f'{name}',
-                prompt=user_input,
-                stream=True,
-                context=context
-            )
-            
-            for chunk in stream:
-                print(chunk['response'], end='', flush=True)
-                try:
-                    context = chunk['context']
-                except:
-                    ""
-            print("\n")
+    stream = ollama.generate(
+        model=f'{name}',
+        prompt=prompt,
+        stream=True,
+        context=context
+    )
+    for chunk in stream:
+        if not "EXIT" in chunk['response']:
+            print(chunk['response'], end='', flush=True)
+            finish += chunk['response']
+            try:
+                context = chunk['context']
+            except:
+                ""
         else:
-            stream = ollama.generate(
-                model=f'{name}',
-                prompt='Say goodbye to the user',
-                stream=True,
-                context=context,
-                keep_alive=0
-            )
-            for chunk in stream:
-                print(chunk['response'], end='', flush=True)
-                try:
-                    context = chunk['context']
-                except:
-                    ""
-            exit = True
+            npc_context[f'{name}'] = context
+            with open('npc_context.json', 'w') as f:
+                json.dump(npc_context, f)
+            return True
     npc_context[f'{name}'] = context
     with open('npc_context.json', 'w') as f:
         json.dump(npc_context, f)
+    print("\n")
+    return False
+    
+
+def talk_to_npc(name):
+    exit = False
+    while exit == False:
+        user_input = input()
+        clear()
+        exit = dialog(name, user_input)
+    ollama.generate(f'{name}', '', keep_alive=0)
+    print("End communication.")
 
 
-talk_to_npc('Kaelyn')
+talk_to_npc('Edward')
         
 
 
