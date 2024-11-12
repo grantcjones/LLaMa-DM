@@ -22,6 +22,8 @@ player = {
     'health':50
 }
 
+
+
 #--------------------------------------------------------------------------------------------------------------
 #   0 - Clear screen, hide cursor, show cursor + bonus niceties
 #--------------------------------------------------------------------------------------------------------------
@@ -126,7 +128,7 @@ def find_intent(player_prompt, choices, context=None, basic_choice=True, debug=F
 
         compiled_responses = ""
         for i in range(ai_votes):
-            prompt = f"The player was asked the DIRECT question '{player_prompt}'. Match the intent of the player input '{userInput}' to ONE of the following EXACT phrases seperated by commas: {choice_string}. Keep in mind the player is stating what THEY are want to do RIGHT NOW. Output ONLY one EXACT matching phrase from the list. Give ONE sentence explaining your reasoning on a new line." 
+            prompt = f"The player was asked the DIRECT question '{player_prompt}'. Match the intent of the player input '{userInput}' to ONE of the following EXACT phrases seperated by commas: {choice_string}. Keep in mind the player is stating what THEY are want to do RIGHT NOW. Output ONLY one EXACT matching phrase from the list. Give ONE sentence explaining your reasoning on a new line."
             analysis = ollama.generate(VERSION, prompt)['response']
             compiled_responses = compiled_responses + f"\n{analysis}\n---------------------------------------------------------------------"
 
@@ -145,12 +147,12 @@ def find_intent(player_prompt, choices, context=None, basic_choice=True, debug=F
 
             prompt = f"Make a tally for how many times each choice was picked and summarize why they were picked: [\n{compiled_responses}]. The responses are assumptions from AI intent detectors, and they all received the exact same user input. You're here to parse them."
             debug_output = ollama.generate(VERSION, prompt)['response'].lower().strip(", .")
+                
 
             stop_loading()
 
             print(debug_output)
             time.sleep(5)
-
         # Return the result
         if compiled_vote in choice_string:
             if compiled_vote in basic_string:
@@ -197,12 +199,23 @@ def describe_enemy(difficulty=easy):
         enemy_pick = hard_diff[random.randint(0, len(hard_diff)-1)]
 
     # Generate the description
-    prompt = f"Create a short description for an enemy described simply as \"{enemy_pick['name']}\" in a room described as \"{enemy_pick['room']}\" with a more flowery and foreboding atmosphere in just one sentence. Take on as much creative liberty as you would like, but make sure to name the enemy directly so as to not leave it ambiguous for the player what they're fighting. You can change the adjectives for it, just not the noun. Do NOT explain your reasoning."
+    prompt = f"Create a SHORT description for an enemy described simply as \"{enemy_pick['name']}\" in a room described as \"{enemy_pick['room']}\" with a more flowery and foreboding atmosphere in just ONE sentence. INCLUDE the TYPE (wolf, golbin, robot, etc) of enemy and NAME them. Otherwise, take creative liberty. Do NOT explain your reasoning."
     stream = ollama.generate(VERSION, prompt, stream=True)
     output = ''
+    context = []
     for chunk in stream:
         print(chunk['response'], end='', flush=True)
         output = output + chunk['response']
+        try:
+            context = chunk['context']
+        except:
+            ""
+    
+    with open('situation_context.json', 'w') as f:
+        json.dump(context, f)
+
+
+    
 
     # Extract the enemy's name
     prompt = f"Extract the name from: {output}. Do NOT explain your reasoning. ONLY output the name."
@@ -223,18 +236,27 @@ def describe_enemy(difficulty=easy):
 #   3 - Better Descriptions
 #--------------------------------------------------------------------------------------------------------------
 
-def describe(base, stream=False):
+situation_context = []
+
+with open(f'situation_context.json') as context_file:
+    try:
+        situation_context = json.load(context_file)
+    except:
+        ""
+
+def describe(base, stream=False, context=False):
     hide_cursor()
-    prompt = f"Make a more descriptive, dark fantasy version of {base} in one BRIEF second-person sentence."
+    prompt = f'Make a more descriptive but breif second person, dark fantasy (game genre) version of "{base}". It should be ONE sentence. Don\'t be so poetic it isn\'t clear what happened. Do not explain your reasoning or surround your response in quotes, as your response is given verbatim to the player.'
+    global situation_context   
     if stream == True:
-        output = ollama.generate(VERSION, prompt, stream=True)
+        output = ollama.generate(VERSION, prompt, stream=True, context=(situation_context if context == True else None))
     else:
-        output = ollama.generate(VERSION, prompt)
+        output = ollama.generate(VERSION, prompt, stream=True, context=(situation_context if context == True else None))
     return output
 
 def elaborate(base):
     # hide_cursor()
-    stream = describe(base, True)
+    stream = describe(base, True, context=True)
     for chunk in stream:
         print(chunk['response'], end='', flush=True)
     # show_cursor()
@@ -276,7 +298,7 @@ def enter_combat(difficulty=easy):
             hit_chance = random.random()
             if hit_chance < 0.7:
                 enemy['health'] -= EQUIPPED['damage']
-                elaborate(f"You hit {name} for {EQUIPPED['damage']} damage.")
+                elaborate(f"You hit {name} for {EQUIPPED['damage']} points of damage.")
             else:
                 elaborate(f"You missed trying to hit {enemy['name']}.")
             
@@ -307,6 +329,7 @@ def enter_combat(difficulty=easy):
         clear()
         time.sleep(1)
         elaborate(f"You killed {name}.")
+        print("\n")
         input("Continue? ")
         if player['health'] > 0:
             return
