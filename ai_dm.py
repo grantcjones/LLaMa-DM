@@ -28,10 +28,6 @@ player = {
 #   0 - Clear screen, hide cursor, show cursor + bonus niceties
 #--------------------------------------------------------------------------------------------------------------
 
-easy = "easy"
-medium = "medium"
-hard = "hard"
-
 def clear():
     print("\033[H\033[J")
 
@@ -172,6 +168,11 @@ def find_intent(player_prompt, choices, context=None, basic_choice=True, debug=F
 #--------------------------------------------------------------------------------------------------------------
 
 enemy = None
+# This makes 
+easy = "easy"
+medium = "medium"
+hard = "hard"
+
 
 def describe_enemy(difficulty=easy):
     
