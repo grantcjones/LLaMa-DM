@@ -79,4 +79,6 @@ def main():
             print(f'Success: {user_input}')
         else:
             print(user_input)
-main()
+
+if __name__ == '__main__':
+    main()
